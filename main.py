@@ -21,7 +21,7 @@ INPUT_CHANNELS = 3 * NUM_FRAMES # 3 frames, each with 3 channels (RGB)
 
 
 def train_agent(device, show_video=False) -> Agent:
-    game = SnakeGame(14, 14, border=1, max_grass=0.05, grass_growth=0.001)
+    game = SnakeGame(14, 14, border=1)
     snake_game = SnakeGameWrapper(game, num_frames=NUM_FRAMES)
 
     policy = EpsilonGreedyPolicy()
@@ -43,7 +43,7 @@ def train_agent(device, show_video=False) -> Agent:
         snake_game=snake_game
     )
 
-    agent.train(num_episodes=200, show_video=show_video)
+    agent.train(num_episodes=10, show_video=show_video)
 
     return agent
 
@@ -85,7 +85,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     agent = train_agent(device, show_video=True)
-    test_agent(device, agent, episodes=10, show_video=True)
+    test_agent(device, agent, episodes=100, show_video=True)
 
 
 if __name__ == "__main__":

@@ -123,9 +123,7 @@ class Agent:
                     )
             
                 self.replay_memory.push(state, action, next_state, reward)
-
                 state = next_state
-
                 self.optimize_model()
 
                 # θ′ ← τ θ + (1 −τ )θ′
@@ -139,12 +137,10 @@ class Agent:
                     break
 
             scores += total_score
+            highest_score = max(highest_score, total_score)
 
-            if total_score > highest_score:
-                highest_score = total_score
-
-            if i_episode % 50 == 0:
-                print(f"Episode {i_episode} - Avg Score: {scores / 50}")
+            if i_episode % 5 == 0:
+                print(f"Episode {i_episode} - Avg Score: {scores / 5}")
                 scores = 0
 
         return highest_score
