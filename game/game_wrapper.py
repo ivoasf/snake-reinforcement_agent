@@ -1,9 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+""" 
+    A wrapper for the snake game that stacks multiple frames together to use as input for a neural network.
+"""
 
 import numpy as np
 from collections import deque
-from snake_game import SnakeGame
+from game.snake_game import SnakeGame
 
 
 class SnakeGameWrapper:

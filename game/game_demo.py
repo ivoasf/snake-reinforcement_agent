@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import matplotlib.pyplot as plt
-from snake_game import SnakeGame
+from game.snake_game import SnakeGame
 
 
 """ function to plot the game board in a png file """
