@@ -4,6 +4,7 @@
 
 import cv2
 import torch
+import config
 from time import sleep
 from itertools import count
 from agent.agent import Agent
@@ -14,24 +15,18 @@ from game.snake_game import SnakeGame
 from game.game_wrapper import SnakeGameWrapper
 
 
-LR = 1e-4
-NUM_ACTIONS = 3  # -1, 0, 1
-NUM_FRAMES = 3
-INPUT_CHANNELS = 3 * NUM_FRAMES # 3 frames, each with 3 channels (RGB)
-
-
 def train_agent(device, show_video=False) -> Agent:
-    game = SnakeGame(14, 14, border=1)
-    snake_game = SnakeGameWrapper(game, num_frames=NUM_FRAMES)
+    game = SnakeGame(config.WIDTH, config.HEIGHT, border=config.BORDER)
+    snake_game = SnakeGameWrapper(game, num_frames=config.NUM_FRAMES)
 
     policy = EpsilonGreedyPolicy()
     heuristic = MinDistanceHeuristic()
 
-    policy_net = DQN(INPUT_CHANNELS, NUM_ACTIONS).to(device)
-    target_net = DQN(INPUT_CHANNELS, NUM_ACTIONS).to(device)
+    policy_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    target_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
-    optimizer = torch.optim.Adam(policy_net.parameters(), lr=LR)
+    optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
 
     agent = Agent(
         device=device,
@@ -43,12 +38,14 @@ def train_agent(device, show_video=False) -> Agent:
         snake_game=snake_game
     )
 
-    agent.train(num_episodes=10, show_video=show_video)
+    agent.train(num_episodes=11, show_video=show_video)
 
     return agent
 
 
-def test_agent(device, agent: Agent, episodes=10, show_video=True):
+def test_agent(device, agent: Agent, episodes=10, show_video=True, speed=0.2):
+    print("\n-- Testing --")
+
     scores = []
 
     if show_video:
@@ -63,10 +60,13 @@ def test_agent(device, agent: Agent, episodes=10, show_video=True):
             if show_video:
                 cv2.imshow("Agent playing the snake game!", pre_state[:, :, :, -1])
                 cv2.waitKey(1) & 0xFF
-                sleep(0.01)
+                sleep(speed)
 
+            # (H, W, C, F)
             state_tensor = torch.tensor(pre_state, dtype=torch.float32, device=device)
+            # permute(2, 3, 0, 1) → (C, F, H, W)
             state_tensor = state_tensor.permute(2, 3, 0, 1)
+            # reshape(1, -1, H, W) → (1, C × F, H, W)
             state_tensor = state_tensor.reshape(1, -1, state_tensor.shape[2], state_tensor.shape[3])
 
             action = agent.choose_action(state_tensor)
@@ -77,15 +77,17 @@ def test_agent(device, agent: Agent, episodes=10, show_video=True):
                 max_score = max(max_score, info["score"])
                 break
 
+    # one apple eaten is 1.0 point
     print(f"Average score over {episodes} episodes: {sum(scores) / len(scores):.2f}")
     print(f"Highest score: {max_score}")
 
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
     agent = train_agent(device, show_video=True)
-    test_agent(device, agent, episodes=100, show_video=True)
+    test_agent(device, agent, episodes=20, show_video=True, speed=0.15)
 
 
 if __name__ == "__main__":

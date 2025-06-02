@@ -1,10 +1,11 @@
 """
-
+    A class representing the agent that interacts with the snake game environment.
 """
 
 import cv2
 import torch
 import torch.nn as nn
+from config import SIZE, TAU, BATCH_SIZE, GAMMA
 from itertools import count
 from time import sleep
 from agent.policies import Policy
@@ -33,10 +34,6 @@ class Agent:
         self.heuristic = heuristic
         self.snake_game = snake_game
         self.replay_memory = replay_memory
-    
-        self.TAU = 0.005        # TAU is the update rate of the target network
-        self.GAMMA = 0.99       # GAMMA is the discount factor
-        self.BATCH_SIZE = 128   # BATCH_SIZE is the number of transitions sampled from the replay buffer
 
         self.build_memory(self.snake_game)
 
@@ -48,7 +45,7 @@ class Agent:
             state = (
                 torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                 .permute(2, 3, 0, 1)
-                .reshape(-1, 16, 16)
+                .reshape(-1, SIZE[0], SIZE[1])
                 .unsqueeze(0)
             )
 
@@ -65,7 +62,7 @@ class Agent:
                     next_state = (
                         torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                         .permute(2, 3, 0, 1)
-                        .reshape(-1, 16, 16)
+                        .reshape(-1, SIZE[0], SIZE[1])
                         .unsqueeze(0)
                     )
 
@@ -82,6 +79,8 @@ class Agent:
 
 
     def train(self, num_episodes=100, show_video=False) -> int:
+        print("\n-- Training --")
+
         if show_video:
             cv2.namedWindow("Training", cv2.WINDOW_NORMAL)
 
@@ -94,7 +93,7 @@ class Agent:
             state = (
                 torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                 .permute(2, 3, 0, 1)
-                .reshape(-1, 16, 16)
+                .reshape(-1, SIZE[0], SIZE[1])
                 .unsqueeze(0)
             )
 
@@ -118,7 +117,7 @@ class Agent:
                     next_state = (
                         torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                         .permute(2, 3, 0, 1)
-                        .reshape(-1, 16, 16)
+                        .reshape(-1, SIZE[0], SIZE[1])
                         .unsqueeze(0)
                     )
             
@@ -130,7 +129,7 @@ class Agent:
                 target_net_state_dict = self.target_net.state_dict()
                 policy_net_state_dict = self.policy_net.state_dict()
                 for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key] * self.TAU + target_net_state_dict[key] * (1 - self.TAU)
+                    target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 if terminated:
@@ -147,10 +146,10 @@ class Agent:
 
 
     def optimize_model(self):
-        if len(self.replay_memory) < self.BATCH_SIZE:
+        if len(self.replay_memory) < BATCH_SIZE:
             return
         
-        transitions = self.replay_memory.sample(self.BATCH_SIZE)
+        transitions = self.replay_memory.sample(BATCH_SIZE)
         batch = Transition(*zip(*transitions))
 
         non_final_mask = torch.tensor(
@@ -172,14 +171,14 @@ class Agent:
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
         # compute V(s_{t+1}) for the next states
-        next_state_values = torch.zeros(self.BATCH_SIZE, device=self.device)
+        next_state_values = torch.zeros(BATCH_SIZE, device=self.device)
         with torch.no_grad():
             next_state_values[non_final_mask] = (
                 self.target_net(non_final_next_states).max(1).values
             )
 
         # compute the expected Q values
-        expected_state_action_values = (next_state_values * self.GAMMA) + reward_batch
+        expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
         # compute the loss
         criterion = nn.SmoothL1Loss()

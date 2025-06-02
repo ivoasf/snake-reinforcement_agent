@@ -4,6 +4,7 @@
 
 import torch.nn as nn
 import torch.nn.functional as F
+from config import SIZE
 
 
 class DQN(nn.Module):
@@ -14,7 +15,7 @@ class DQN(nn.Module):
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1)
 
-        self.fc1 = nn.Linear(64 * 16 * 16, 512) # assuming board size is 16x16
+        self.fc1 = nn.Linear(64 * SIZE[0] * SIZE[1], 512)
         self.fc2 = nn.Linear(512, num_actions)
 
     def forward(self, x):
