@@ -38,7 +38,7 @@ def train_agent(device, show_video=False) -> Agent:
         snake_game=snake_game
     )
 
-    agent.train(num_episodes=11, show_video=show_video)
+    agent.train(num_episodes=31, show_video=show_video)
 
     return agent
 
@@ -84,10 +84,11 @@ def test_agent(device, agent: Agent, episodes=10, show_video=True, speed=0.2):
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    print("-- Device --")
+    print(f"{device}")
 
     agent = train_agent(device, show_video=True)
-    test_agent(device, agent, episodes=20, show_video=True, speed=0.15)
+    test_agent(device, agent, episodes=10, show_video=True, speed=0.4)
 
 
 if __name__ == "__main__":

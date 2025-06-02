@@ -82,7 +82,7 @@ class Agent:
         print("\n-- Training --")
 
         if show_video:
-            cv2.namedWindow("Training", cv2.WINDOW_NORMAL)
+            cv2.namedWindow("Training the agent!", cv2.WINDOW_NORMAL)
 
         scores = 0
         highest_score = 0
@@ -101,12 +101,19 @@ class Agent:
 
             for t in count():
                 if show_video:
-                    cv2.imshow("Training", pre_state[:, :, :, 0])
+                    cv2.imshow("Training the agent!", pre_state[:, :, :, -1])
                     cv2.waitKey(1) & 0xFF
                     sleep(0.01)
 
                 action = self.choose_action(state)
                 pre_state, reward, terminated, info = self.snake_game.step(action.item() - 1)
+                
+                " debug "
+                #if terminated:
+                #    print(f"[!] Terminated - Score: {info['score']}, Reason: likely collision, Action: {action.item() - 1} [!]")
+                #if terminated and show_video:
+                #    cv2.waitKey(0)
+                " end of debug "
 
                 reward = torch.tensor([reward], device=self.device)
                 total_score = info["score"]

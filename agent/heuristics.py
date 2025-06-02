@@ -60,5 +60,5 @@ class MinDistanceHeuristic(Heuristic):
             elif dx < 0:
                 return GO_STRAIGHT  # apple is straight ahead
 
-        # if none of the above conditions are met, return GO_STRAIGHT as a fallback
-        return GO_STRAIGHT
+        # if none of the above conditions are met (the apple is behind the snake), return TURN_LEFT as a fallback
+        return TURN_LEFT
