@@ -2,12 +2,10 @@
     A class representing the agent that interacts with the snake game environment.
 """
 
-import cv2
 import torch
 import torch.nn as nn
-from config import SIZE, TAU, BATCH_SIZE, GAMMA
+from config import SIZE, BATCH_SIZE, GAMMA
 from itertools import count
-from time import sleep
 from agent.policies import Policy
 from agent.heuristics import Heuristic
 from agent.replay_memory import ReplayMemory, Transition
@@ -76,80 +74,6 @@ class Agent:
 
     def choose_action(self, state):
         return self.policy.choose_action(state, self.policy_net, self.device)
-
-
-    def train(self, num_episodes=100, show_video=False) -> int:
-        print("\n-- Training --")
-
-        if show_video:
-            cv2.namedWindow("Training the agent!", cv2.WINDOW_NORMAL)
-
-        scores = 0
-        highest_score = 0
-
-        for i_episode in range(num_episodes):
-            pre_state, _, _, info = self.snake_game.reset()
-
-            state = (
-                torch.tensor(pre_state, dtype=torch.float32, device=self.device)
-                .permute(2, 3, 0, 1)
-                .reshape(-1, SIZE[0], SIZE[1])
-                .unsqueeze(0)
-            )
-
-            total_score = 0
-
-            for t in count():
-                if show_video:
-                    cv2.imshow("Training the agent!", pre_state[:, :, :, -1])
-                    cv2.waitKey(1) & 0xFF
-                    sleep(0.01)
-
-                action = self.choose_action(state)
-                pre_state, reward, terminated, info = self.snake_game.step(action.item() - 1)
-                
-                " debug "
-                #if terminated:
-                #    print(f"[!] Terminated - Score: {info['score']}, Reason: likely collision, Action: {action.item() - 1} [!]")
-                #if terminated and show_video:
-                #    cv2.waitKey(0)
-                " end of debug "
-
-                reward = torch.tensor([reward], device=self.device)
-                total_score = info["score"]
-
-                if terminated:
-                    next_state = None
-                else:
-                    next_state = (
-                        torch.tensor(pre_state, dtype=torch.float32, device=self.device)
-                        .permute(2, 3, 0, 1)
-                        .reshape(-1, SIZE[0], SIZE[1])
-                        .unsqueeze(0)
-                    )
-            
-                self.replay_memory.push(state, action, next_state, reward)
-                state = next_state
-                self.optimize_model()
-
-                # θ′ ← τ θ + (1 −τ )θ′
-                target_net_state_dict = self.target_net.state_dict()
-                policy_net_state_dict = self.policy_net.state_dict()
-                for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
-                self.target_net.load_state_dict(target_net_state_dict)
-
-                if terminated:
-                    break
-
-            scores += total_score
-            highest_score = max(highest_score, total_score)
-
-            if i_episode % 5 == 0:
-                print(f"Episode {i_episode} - Avg Score: {scores / 5}")
-                scores = 0
-
-        return highest_score
 
 
     def optimize_model(self):
