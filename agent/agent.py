@@ -2,9 +2,12 @@
     A class representing the agent that interacts with the snake game environment.
 """
 
+import cv2
 import torch
 import torch.nn as nn
-from config import SIZE, BATCH_SIZE, GAMMA
+from time import sleep
+from itertools import count
+from config import SIZE, BATCH_SIZE, GAMMA, TAU
 from itertools import count
 from agent.policies import Policy
 from agent.heuristics import Heuristic
@@ -119,3 +122,109 @@ class Agent:
         loss.backward()
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
+
+
+    def train(self, episodes=500, show_video=False, speed=0.1):
+        print("\n-- Training --")
+
+        if show_video:
+            cv2.namedWindow("Training the agent!", cv2.WINDOW_NORMAL)
+
+        scores = 0
+        highest_score = 0
+
+        for i_episode in range(episodes):
+            pre_state, _, _, info = self.snake_game.reset()
+
+            state = (
+                torch.tensor(pre_state, dtype=torch.float32, device=self.device)
+                .permute(2, 3, 0, 1)
+                .reshape(-1, SIZE[0], SIZE[1])
+                .unsqueeze(0)
+            )
+
+            total_score = 0
+
+            for t in count():
+                if show_video:
+                    cv2.imshow("Training the agent!", pre_state[:, :, :, -1])
+                    cv2.waitKey(1) & 0xFF
+                    sleep(speed)
+
+                action = self.choose_action(state)
+                pre_state, reward, terminated, info = self.snake_game.step(action.item() - 1)
+            
+                reward = torch.tensor([reward], device=self.device)
+                total_score = info["score"]
+
+                if terminated:
+                    next_state = None
+                else:
+                    next_state = (
+                        torch.tensor(pre_state, dtype=torch.float32, device=self.device)
+                        .permute(2, 3, 0, 1)
+                        .reshape(-1, SIZE[0], SIZE[1])
+                        .unsqueeze(0)
+                    )
+            
+                self.replay_memory.push(state, action, next_state, reward)
+                state = next_state
+                self.optimize_model()
+
+                # θ′ ← τ θ + (1 −τ )θ′
+                target_net_state_dict = self.target_net.state_dict()
+                policy_net_state_dict = self.policy_net.state_dict()
+                for key in policy_net_state_dict:
+                    target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
+                self.target_net.load_state_dict(target_net_state_dict)
+
+                if terminated:
+                    break
+
+            scores += total_score
+            highest_score = max(highest_score, total_score)
+
+            if i_episode % 5 == 0:
+                print(f"Episode {i_episode} - Avg Score: {scores / 5}")
+                scores = 0
+
+        print(f"Highest score: {highest_score}")
+
+
+    def test(self, episodes=10, show_video=True, speed=0.2):
+        print("\n-- Testing --")
+
+        scores = []
+
+        if show_video:
+            cv2.namedWindow("Agent playing the snake game!", cv2.WINDOW_NORMAL)
+
+        max_score = 0
+
+        for _ in range(episodes):
+            pre_state, _, _, _ = self.snake_game.reset()
+
+            for _ in count():
+                if show_video:
+                    cv2.imshow("Agent playing the snake game!", pre_state[:, :, :, -1])
+                    cv2.waitKey(1) & 0xFF
+                    sleep(speed)
+
+                # (H, W, C, F)
+                state_tensor = torch.tensor(pre_state, dtype=torch.float32, device=self.device)
+                # permute(2, 3, 0, 1) → (C, F, H, W)
+                state_tensor = state_tensor.permute(2, 3, 0, 1)
+                # reshape(1, -1, H, W) → (1, C × F, H, W)
+                state_tensor = state_tensor.reshape(1, -1, state_tensor.shape[2], state_tensor.shape[3])
+
+                action = self.choose_action(state_tensor)
+                pre_state, _, terminated, info = self.snake_game.step(action.item() - 1)
+
+                if terminated:
+                    scores.append(info["score"])
+                    max_score = max(max_score, info["score"])
+                    break
+
+        # one apple eaten is 1.0 point
+        print(f"Average score over {episodes} episodes: {sum(scores) / len(scores):.2f}")
+        print(f"Highest score: {max_score}")
