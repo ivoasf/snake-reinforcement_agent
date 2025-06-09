@@ -26,6 +26,23 @@ class DQN(nn.Module):
 
         x = x.view(x.size(0), -1)  # flatten to (B, 64*H*W)
         x = F.relu(self.fc1(x))    # (B, 512)
-        x = self.fc2(x)            # (B, num_actions)
+        return self.fc2(x)         # (B, num_actions)
 
-        return x
+    
+class SimpleDQN(nn.Module):
+    def __init__(self, input_channels: int, num_actions: int):
+        super(SimpleDQN, self).__init__()
+
+        self.conv1 = nn.Conv2d(input_channels, 32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+
+        self.fc1 = nn.Linear(64 * SIZE[0] * SIZE[1], 128)
+        self.fc2 = nn.Linear(128, num_actions)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+
+        x = x.view(x.size(0), -1)
+        x = F.relu(self.fc1(x))
+        return self.fc2(x)

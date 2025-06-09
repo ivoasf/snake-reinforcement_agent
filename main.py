@@ -4,6 +4,7 @@
 
 import torch
 import config
+import time
 from agent.agent import Agent
 from agent.dqn import DQN
 from agent.heuristics import MinDistanceHeuristic
@@ -14,6 +15,8 @@ from game.game_wrapper import SnakeGameWrapper
 
 
 def main():
+    start_time = time.time()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("-- Device --")
     print(f"{device}\n")
@@ -23,9 +26,9 @@ def main():
 
     try:
         agent = agent_manager.load(agent_id)
-        print("[✓] Agent loaded successfully!")
+        print("Agent loaded successfully!")
     except FileNotFoundError:
-        print("[!] No saved agent found, creating a new one...")
+        print("No saved agent found, creating a new one...")
 
         game = SnakeGame(config.WIDTH, config.HEIGHT, border=config.BORDER)
         snake_game = SnakeGameWrapper(game, num_frames=config.NUM_FRAMES)
@@ -53,6 +56,10 @@ def main():
     agent_manager.save(agent, agent_id)
 
     agent.test(episodes=5, show_video=True, speed=0.1)
+
+    end_time = time.time()
+    elapsed = end_time - start_time
+    print(f"\nTotal elapsed time: {elapsed:.2f} seconds")
 
 
 if __name__ == "__main__":

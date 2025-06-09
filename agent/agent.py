@@ -171,7 +171,7 @@ class Agent:
                 #else:
                 #    reward = 0
 
-                reward = torch.tensor([reward], device=self.device)
+                reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
                 total_score = info["score"]
             
                 self.replay_memory.push(state, action, next_state, reward)
