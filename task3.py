@@ -5,17 +5,20 @@
 import cv2
 import torch
 import torch.nn as nn
+import config
+import time
 from time import sleep
 from itertools import count
-from config import SIZE, BATCH_SIZE, GAMMA, TAU
 from itertools import count
-from agent.policies import Policy
-from agent.heuristics import Heuristic
-from agent.replay_memory import ReplayMemory, Transition
+from game.snake_game import SnakeGame
 from game.game_wrapper import SnakeGameWrapper
+from agent.heuristics import Heuristic, MinDistanceHeuristic
+from agent.dqn import SimpleDQN
+from agent.replay_memory import ReplayMemory, Transition
+from agent.policies import Policy, EpsilonGreedyPolicy, BoltzmannPolicy
 
 
-class Agent:
+class Task3:
     def __init__(
         self,
         device,
@@ -46,7 +49,7 @@ class Agent:
             state = (
                 torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                 .permute(2, 3, 0, 1)
-                .reshape(-1, SIZE[0], SIZE[1])
+                .reshape(-1, config.SIZE[0], config.SIZE[1])
                 .unsqueeze(0)
             )
 
@@ -63,7 +66,7 @@ class Agent:
                     next_state = (
                         torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                         .permute(2, 3, 0, 1)
-                        .reshape(-1, SIZE[0], SIZE[1])
+                        .reshape(-1, config.SIZE[0], config.SIZE[1])
                         .unsqueeze(0)
                     )
 
@@ -80,10 +83,10 @@ class Agent:
 
 
     def optimize_model(self):
-        if len(self.replay_memory) < BATCH_SIZE:
+        if len(self.replay_memory) < config.BATCH_SIZE:
             return
         
-        transitions = self.replay_memory.sample(BATCH_SIZE)
+        transitions = self.replay_memory.sample(config.BATCH_SIZE)
         batch = Transition(*zip(*transitions))
 
         non_final_mask = torch.tensor(
@@ -104,14 +107,14 @@ class Agent:
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
 
         # compute V(s_{t+1}) for the next states
-        next_state_values = torch.zeros(BATCH_SIZE, device=self.device)
+        next_state_values = torch.zeros(config.BATCH_SIZE, device=self.device)
         with torch.no_grad():
             next_state_values[non_final_mask] = (
                 self.target_net(non_final_next_states).max(1).values
             )
 
         # compute the expected Q values
-        expected_state_action_values = (next_state_values * GAMMA) + reward_batch
+        expected_state_action_values = (next_state_values * config.GAMMA) + reward_batch
 
         # compute the loss
         criterion = nn.SmoothL1Loss()
@@ -138,7 +141,7 @@ class Agent:
             state = (
                 torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                 .permute(2, 3, 0, 1)
-                .reshape(-1, SIZE[0], SIZE[1])
+                .reshape(-1, config.SIZE[0], config.SIZE[1])
                 .unsqueeze(0)
             )
 
@@ -159,7 +162,7 @@ class Agent:
                     next_state = (
                         torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                         .permute(2, 3, 0, 1)
-                        .reshape(-1, SIZE[0], SIZE[1])
+                        .reshape(-1, config.SIZE[0], config.SIZE[1])
                         .unsqueeze(0)
                     )
 
@@ -181,7 +184,7 @@ class Agent:
                 target_net_state_dict = self.target_net.state_dict()
                 policy_net_state_dict = self.policy_net.state_dict()
                 for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key] * TAU + target_net_state_dict[key] * (1 - TAU)
+                    target_net_state_dict[key] = policy_net_state_dict[key] * config.TAU + target_net_state_dict[key] * (1 - config.TAU)
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 if terminated:
@@ -234,3 +237,40 @@ class Agent:
         # one apple eaten is 1.0 point
         print(f"Average score over {episodes} episodes: {sum(scores) / len(scores):.2f}")
         print(f"Highest score: {max_score}")
+
+
+if __name__ == "__main__":
+    start_time = time.time()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("-- Device --")
+    print(f"{device}")
+
+    game = SnakeGame(config.WIDTH, config.HEIGHT, border=config.BORDER)
+    snake_game = SnakeGameWrapper(game, num_frames=config.NUM_FRAMES)
+
+    policy_net = SimpleDQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    target_net = SimpleDQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    target_net.load_state_dict(policy_net.state_dict())
+
+    policy = EpsilonGreedyPolicy()
+    heuristic = MinDistanceHeuristic()
+
+    optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
+
+    agent = Task3(
+        device=device,
+        optimizer=optimizer,
+        policy_net=policy_net,
+        target_net=target_net,
+        policy=policy,
+        heuristic=heuristic,
+        snake_game=snake_game
+    )
+
+    agent.train(episodes=100, show_video=True, speed=0.0001)
+    agent.test(episodes=10, show_video=True, speed=0.2)
+
+    end_time = time.time()
+    elapsed = end_time - start_time
+    print(f"\nTotal elapsed time: {elapsed:.2f} seconds")
