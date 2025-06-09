@@ -1,5 +1,5 @@
 """
-    A class representing the agent that interacts with the snake game environment.
+    A class representing the task3 agent for the snake game.
 """
 
 import cv2
