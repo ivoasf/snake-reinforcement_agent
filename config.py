@@ -6,7 +6,7 @@ SIZE = (WIDTH + (BORDER*2), HEIGHT + (BORDER*2))
 
 " game "
 NUM_ACTIONS = 3 # -1 (left), 0 (straight), 1 (right)
-NUM_FRAMES = 3
+NUM_FRAMES = 5
 INPUT_CHANNELS = NUM_FRAMES*3  # n frames, each with 3 channels (RGB)
 
 " training "
