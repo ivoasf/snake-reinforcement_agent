@@ -124,7 +124,7 @@ class Agent:
         self.optimizer.step()
 
 
-    def train(self, episodes=500, show_video=False, speed=0.1):
+    def train(self, episodes=500, show_video=False, speed=0.001):
         print("\n-- Training --")
 
         if show_video:
@@ -153,9 +153,6 @@ class Agent:
 
                 action = self.choose_action(state)
                 pre_state, reward, terminated, info = self.snake_game.step(action.item() - 1)
-            
-                reward = torch.tensor([reward], device=self.device)
-                total_score = info["score"]
 
                 if terminated:
                     next_state = None
@@ -166,6 +163,16 @@ class Agent:
                         .reshape(-1, SIZE[0], SIZE[1])
                         .unsqueeze(0)
                     )
+
+                #if terminated:
+                #    reward = -1.0
+                #elif reward == 1.0:
+                #    reward = 1.0
+                #else:
+                #    reward = 0
+
+                reward = torch.tensor([reward], device=self.device)
+                total_score = info["score"]
             
                 self.replay_memory.push(state, action, next_state, reward)
                 state = next_state
@@ -184,14 +191,14 @@ class Agent:
             scores += total_score
             highest_score = max(highest_score, total_score)
 
-            if i_episode % 5 == 0:
-                print(f"Episode {i_episode} - Avg Score: {scores / 5}")
+            if i_episode % 10 == 0:
+                print(f"Episode {i_episode} - Avg Score: {scores / 10}")
                 scores = 0
 
         print(f"Highest score: {highest_score}")
 
 
-    def test(self, episodes=10, show_video=True, speed=0.2):
+    def test(self, episodes=10, show_video=True, speed=0.1):
         print("\n-- Testing --")
 
         scores = []

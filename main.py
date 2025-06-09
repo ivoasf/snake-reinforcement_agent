@@ -49,10 +49,10 @@ def main():
             snake_game=snake_game
         )
 
-    agent.train(episodes=21, show_video=True, speed=0.001)
+    agent.train(episodes=11, show_video=False, speed=0.0001)
     agent_manager.save(agent, agent_id)
 
-    agent.test(episodes=11, show_video=True, speed=0.2)
+    agent.test(episodes=5, show_video=True, speed=0.1)
 
 
 if __name__ == "__main__":
