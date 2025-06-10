@@ -1,19 +1,23 @@
 """
     A class representing the task3 agent for the snake game.
+
+    The agent uses a complex DQN to play the snake game.
+    The agent can choose actions based on a policy (Epsilon-Greedy or Boltzmann).
+    The agent uses a target network for stability during training.
+    The agent uses a replay memory to store transitions and optimize the model.
 """
 
 import cv2
-import torch
-import torch.nn as nn
 import config
 import time
+import torch
+import torch.nn as nn
 from time import sleep
-from itertools import count
 from itertools import count
 from game.snake_game import SnakeGame
 from game.game_wrapper import SnakeGameWrapper
-from agent.heuristics import Heuristic, MinDistanceHeuristic
-from agent.dqn import SimpleDQN
+from agent.dqn import DQN
+from agent.heuristics import Heuristic, ImprovedHeuristic
 from agent.replay_memory import ReplayMemory, Transition
 from agent.policies import Policy, EpsilonGreedyPolicy, BoltzmannPolicy
 
@@ -57,8 +61,8 @@ class Task3:
                 action = self.heuristic.get_action(game)
                 pre_state, reward, done, _ = game.step(action - 1)
 
-                reward = torch.tensor([reward], device=self.device, dtype=torch.long)
-                action = torch.tensor([[action]], device=self.device, dtype=torch.long)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
+                action = torch.tensor([[action]], device=self.device, dtype=torch.float32)
 
                 if done:
                     next_state = None
@@ -100,8 +104,8 @@ class Task3:
         )
 
         state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
+        action_batch = torch.cat(batch.action).long()
+        reward_batch = torch.cat(batch.reward).float()
 
         # compute Q(s_t, a) where a is the action taken by the agent
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
@@ -134,6 +138,8 @@ class Task3:
 
         scores = 0
         highest_score = 0
+        steps_done = 0
+        update_target_every = 100  # hard update after every 100 steps
 
         for i_episode in range(episodes):
             pre_state, _, _, info = self.snake_game.reset()
@@ -166,26 +172,30 @@ class Task3:
                         .unsqueeze(0)
                     )
 
-                #if terminated:
-                #    reward = -1.0
-                #elif reward == 1.0:
-                #    reward = 1.0
-                #else:
-                #    reward = 0
+                if terminated:
+                    reward = -10.0
+                elif reward == 1.0:
+                    reward = 10.0
+                else:
+                    reward = -0.1
 
-                reward = torch.tensor([reward], dtype=torch.float32, device=self.device)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
                 total_score = info["score"]
             
                 self.replay_memory.push(state, action, next_state, reward)
                 state = next_state
                 self.optimize_model()
 
-                # θ′ ← τ θ + (1 −τ )θ′
-                target_net_state_dict = self.target_net.state_dict()
-                policy_net_state_dict = self.policy_net.state_dict()
-                for key in policy_net_state_dict:
-                    target_net_state_dict[key] = policy_net_state_dict[key] * config.TAU + target_net_state_dict[key] * (1 - config.TAU)
-                self.target_net.load_state_dict(target_net_state_dict)
+                steps_done += 1
+                if steps_done % update_target_every == 0:
+                    # θ′ ← τ θ + (1 −τ )θ′
+                    target_net_state_dict = self.target_net.state_dict()
+                    policy_net_state_dict = self.policy_net.state_dict()
+                    for key in policy_net_state_dict:
+                        target_net_state_dict[key] = policy_net_state_dict[key] * config.TAU + target_net_state_dict[key] * (1 - config.TAU)
+                    self.target_net.load_state_dict(target_net_state_dict)
+
+                    steps_done = 0
 
                 if terminated:
                     break
@@ -193,8 +203,8 @@ class Task3:
             scores += total_score
             highest_score = max(highest_score, total_score)
 
-            if i_episode % 10 == 0:
-                print(f"Episode {i_episode} - Avg Score: {scores / 10}")
+            if (i_episode + 1) % 10 == 0:
+                print(f"Episode {i_episode + 1} - Avg Score: {scores / 10}")
                 scores = 0
 
         print(f"Highest score: {highest_score}")
@@ -218,7 +228,7 @@ class Task3:
                     cv2.imshow("Agent playing the snake game!", pre_state[:, :, :, -1])
                     cv2.waitKey(1) & 0xFF
                     sleep(speed)
-
+                    
                 # (H, W, C, F)
                 state_tensor = torch.tensor(pre_state, dtype=torch.float32, device=self.device)
                 # permute(2, 3, 0, 1) → (C, F, H, W)
@@ -249,12 +259,12 @@ if __name__ == "__main__":
     game = SnakeGame(config.WIDTH, config.HEIGHT, border=config.BORDER)
     snake_game = SnakeGameWrapper(game, num_frames=config.NUM_FRAMES)
 
-    policy_net = SimpleDQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
-    target_net = SimpleDQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    policy_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    target_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
-    policy = EpsilonGreedyPolicy()
-    heuristic = MinDistanceHeuristic()
+    policy = BoltzmannPolicy()
+    heuristic = ImprovedHeuristic()
 
     optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
 
@@ -268,9 +278,23 @@ if __name__ == "__main__":
         snake_game=snake_game
     )
 
-    agent.train(episodes=100, show_video=True, speed=0.0001)
+    agent.train(episodes=500, show_video=True, speed=0.0001)
     agent.test(episodes=10, show_video=True, speed=0.2)
 
     end_time = time.time()
     elapsed = end_time - start_time
-    print(f"\nTotal elapsed time: {elapsed:.2f} seconds")
+    
+    hours = int(elapsed // 3600)
+    minutes = int((elapsed % 3600) // 60)
+    seconds = int(elapsed % 60)
+
+    time_parts = []
+    if hours > 0:
+        time_parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+    if minutes > 0:
+        time_parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+    if seconds > 0 or (hours == 0 and minutes == 0):
+        time_parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    time_str = ", ".join(time_parts[:-1]) + (" and " if len(time_parts) > 1 else "") + time_parts[-1]
+    print(f"\n-- Time --\n{time_str}")

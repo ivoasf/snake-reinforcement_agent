@@ -1,19 +1,23 @@
 """
     A class representing the task2 agent for the snake game.
+
+    The agent uses a DQN to play the snake game.
+    The agent can choose actions based on a heuristic or random.
+    The agent uses a target network for stability during training.
+    The agent uses a replay memory to store transitions and optimize the model.
 """
 
 import cv2
-import torch
-import torch.nn as nn
 import config
 import time
+import torch
+import torch.nn as nn
 from time import sleep
-from itertools import count
 from itertools import count
 from game.snake_game import SnakeGame
 from game.game_wrapper import SnakeGameWrapper
-from agent.heuristics import Heuristic, MinDistanceHeuristic
-from agent.dqn import SimpleDQN
+from agent.dqn import DQN
+from agent.heuristics import Heuristic, ImprovedHeuristic
 from agent.replay_memory import ReplayMemory, Transition
 
 
@@ -26,7 +30,7 @@ class Task2:
         target_net,
         heuristic: Heuristic,
         snake_game: SnakeGameWrapper,
-        replay_memory=ReplayMemory(5000)
+        replay_memory=ReplayMemory(10000)
     ):
         self.device = device
         self.optimizer = optimizer
@@ -54,8 +58,8 @@ class Task2:
                 action = self.heuristic.get_action(game)
                 pre_state, reward, done, _ = game.step(action - 1)
 
-                reward = torch.tensor([reward], device=self.device, dtype=torch.long)
-                action = torch.tensor([[action]], device=self.device, dtype=torch.long)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
+                action = torch.tensor([[action]], device=self.device, dtype=torch.float32)
 
                 if done:
                     next_state = None
@@ -98,8 +102,8 @@ class Task2:
         )
 
         state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
+        action_batch = torch.cat(batch.action).long()
+        reward_batch = torch.cat(batch.reward).float()
 
         # compute Q(s_t, a) where a is the action taken by the agent
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
@@ -120,7 +124,6 @@ class Task2:
 
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
 
 
@@ -132,11 +135,10 @@ class Task2:
 
         scores = 0
         highest_score = 0
+        steps_done = 0
+        update_target_every = 100  # hard update after every 100 steps
 
         for i_episode in range(episodes):
-            update_target_every = 100  # hard update
-            steps_done = 0
-
             pre_state, _, _, info = self.snake_game.reset()
 
             state = (
@@ -155,7 +157,7 @@ class Task2:
                     sleep(speed)
 
                 if use_heuristic:
-                    action = torch.tensor([[self.heuristic.get_action(self.snake_game)]], device=self.device, dtype=torch.long)
+                    action = torch.tensor([[self.heuristic.get_action(self.snake_game)]], device=self.device, dtype=torch.float32)
                 else:
                     action = self.choose_action(state)
 
@@ -187,14 +189,16 @@ class Task2:
                         target_net_state_dict[key] = policy_net_state_dict[key] * config.TAU + target_net_state_dict[key] * (1 - config.TAU)
                     self.target_net.load_state_dict(target_net_state_dict)
 
+                    steps_done = 0
+
                 if terminated:
                     break
 
             scores += total_score
             highest_score = max(highest_score, total_score)
 
-            if i_episode % 10 == 0:
-                print(f"Episode {i_episode} - Avg Score: {scores / 10}")
+            if (i_episode + 1) % 10 == 0:
+                print(f"Episode {i_episode + 1} - Avg Score: {scores / 10}")
                 scores = 0
 
         print(f"Highest score: {highest_score}")
@@ -249,11 +253,11 @@ if __name__ == "__main__":
     game = SnakeGame(config.WIDTH, config.HEIGHT, border=config.BORDER)
     snake_game = SnakeGameWrapper(game, num_frames=config.NUM_FRAMES)
 
-    policy_net = SimpleDQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
-    target_net = SimpleDQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    policy_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
+    target_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
 
-    heuristic = MinDistanceHeuristic()
+    heuristic = ImprovedHeuristic()
 
     optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
 
@@ -266,9 +270,23 @@ if __name__ == "__main__":
         snake_game=snake_game
     )
 
-    agent.train(use_heuristic=True, episodes=100, show_video=True, speed=0.0001)
+    agent.train(use_heuristic=False, episodes=1000, show_video=False, speed=0.0001)
     agent.test(episodes=10, show_video=True, speed=0.2)
 
     end_time = time.time()
     elapsed = end_time - start_time
-    print(f"\nTotal elapsed time: {elapsed:.2f} seconds")
+
+    hours = int(elapsed // 3600)
+    minutes = int((elapsed % 3600) // 60)
+    seconds = int(elapsed % 60)
+
+    time_parts = []
+    if hours > 0:
+        time_parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+    if minutes > 0:
+        time_parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+    if seconds > 0 or (hours == 0 and minutes == 0):
+        time_parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    time_str = ", ".join(time_parts[:-1]) + (" and " if len(time_parts) > 1 else "") + time_parts[-1]
+    print(f"\n-- Time --\n{time_str}")
