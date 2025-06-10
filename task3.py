@@ -61,8 +61,8 @@ class Task3:
                 action = self.heuristic.get_action(game)
                 pre_state, reward, done, _ = game.step(action - 1)
 
-                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
-                action = torch.tensor([[action]], device=self.device, dtype=torch.float32)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.long)
+                action = torch.tensor([[action]], device=self.device, dtype=torch.long)
 
                 if done:
                     next_state = None
@@ -138,8 +138,6 @@ class Task3:
 
         scores = 0
         highest_score = 0
-        steps_done = 0
-        update_target_every = 50  # hard update after every 50 steps
 
         for i_episode in range(episodes):
             pre_state, _, _, info = self.snake_game.reset()
@@ -172,13 +170,6 @@ class Task3:
                         .unsqueeze(0)
                     )
 
-                if terminated:
-                    reward = -10.0
-                elif reward == 1.0:
-                    reward = 10.0
-                else:
-                    reward = -0.1
-
                 reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
                 total_score = info["score"]
             
@@ -186,16 +177,12 @@ class Task3:
                 state = next_state
                 self.optimize_model()
 
-                steps_done += 1
-                if steps_done % update_target_every == 0:
-                    # θ′ ← τ θ + (1 −τ )θ′
-                    target_net_state_dict = self.target_net.state_dict()
-                    policy_net_state_dict = self.policy_net.state_dict()
-                    for key in policy_net_state_dict:
-                        target_net_state_dict[key] = policy_net_state_dict[key] * config.TAU + target_net_state_dict[key] * (1 - config.TAU)
-                    self.target_net.load_state_dict(target_net_state_dict)
-
-                    steps_done = 0
+                # θ′ ← τ θ + (1 −τ )θ′
+                target_net_state_dict = self.target_net.state_dict()
+                policy_net_state_dict = self.policy_net.state_dict()
+                for key in policy_net_state_dict:
+                    target_net_state_dict[key] = policy_net_state_dict[key] * config.TAU + target_net_state_dict[key] * (1 - config.TAU)
+                self.target_net.load_state_dict(target_net_state_dict)
 
                 if terminated:
                     break
@@ -262,11 +249,12 @@ if __name__ == "__main__":
     policy_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
+    target_net.eval()
 
-    policy = BoltzmannPolicy()
+    policy = EpsilonGreedyPolicy()
     heuristic = ImprovedHeuristic()
 
-    optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
+    optimizer = torch.optim.AdamW(policy_net.parameters(), lr=config.LEARNING_RATE)
 
     agent = Task3(
         device=device,

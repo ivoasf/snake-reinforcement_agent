@@ -14,7 +14,7 @@ class Policy:
 
 
 class EpsilonGreedyPolicy(Policy):
-    def __init__(self, num_actions: int = 3, eps_start: float = 0.9, eps_end: float = 0.1, eps_decay: int = 500):
+    def __init__(self, num_actions: int = 3, eps_start: float = 0.9, eps_end: float = 0.05, eps_decay: int = 1000):
         self.num_actions = num_actions
         self.eps_start = eps_start
         self.eps_end = eps_end

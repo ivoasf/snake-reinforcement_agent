@@ -173,7 +173,7 @@ if __name__ == "__main__":
 
     heuristic = ImprovedHeuristic()
 
-    optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
+    optimizer = torch.optim.AdamW(policy_net.parameters(), lr=config.LEARNING_RATE)
 
     agent = Task1(
         device=device,
@@ -183,8 +183,8 @@ if __name__ == "__main__":
         snake_game=snake_game
     )
 
-    agent.train(use_heuristic=False, episodes=200, show_video=False, speed=0.0001)
-    agent.test(episodes=15, show_video=True, speed=0.2)
+    agent.train(use_heuristic=False, episodes=500, show_video=True, speed=0.0001)
+    agent.test(episodes=50, show_video=False, speed=0.0001)
 
     end_time = time.time()
     elapsed = end_time - start_time

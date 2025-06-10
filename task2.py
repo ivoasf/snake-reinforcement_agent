@@ -58,8 +58,8 @@ class Task2:
                 action = self.heuristic.get_action(game)
                 pre_state, reward, done, _ = game.step(action - 1)
 
-                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
-                action = torch.tensor([[action]], device=self.device, dtype=torch.float32)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.long)
+                action = torch.tensor([[action]], device=self.device, dtype=torch.long)
 
                 if done:
                     next_state = None
@@ -256,10 +256,11 @@ if __name__ == "__main__":
     policy_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net = DQN(config.INPUT_CHANNELS, config.NUM_ACTIONS).to(device)
     target_net.load_state_dict(policy_net.state_dict())
+    target_net.eval()
 
     heuristic = ImprovedHeuristic()
 
-    optimizer = torch.optim.Adam(policy_net.parameters(), lr=config.LEARNING_RATE)
+    optimizer = torch.optim.AdamW(policy_net.parameters(), lr=config.LEARNING_RATE)
 
     agent = Task2(
         device=device,
@@ -270,7 +271,7 @@ if __name__ == "__main__":
         snake_game=snake_game
     )
 
-    agent.train(use_heuristic=False, episodes=1000, show_video=False, speed=0.0001)
+    agent.train(use_heuristic=False, episodes=1000, show_video=True, speed=0.0001)
     agent.test(episodes=10, show_video=True, speed=0.2)
 
     end_time = time.time()
