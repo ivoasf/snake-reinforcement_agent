@@ -48,4 +48,4 @@ class ImprovedHeuristic(Heuristic):
             return 1 # straight ahead
 
         best = min(safe_actions, key=lambda a: manhattan(options[a], target))
-        return best
+        return best 

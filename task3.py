@@ -139,7 +139,7 @@ class Task3:
         scores = 0
         highest_score = 0
         steps_done = 0
-        update_target_every = 100  # hard update after every 100 steps
+        update_target_every = 50  # hard update after every 50 steps
 
         for i_episode in range(episodes):
             pre_state, _, _, info = self.snake_game.reset()

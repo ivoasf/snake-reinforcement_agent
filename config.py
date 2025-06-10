@@ -13,4 +13,5 @@ INPUT_CHANNELS = NUM_FRAMES*3  # n frames, each with 3 channels (RGB)
 LEARNING_RATE = 1e-4
 BATCH_SIZE = 128 # number of transitions sampled from the replay buffer
 GAMMA = 0.95 # discount factor
-TAU = 0.005 # update rate of the target network
+TAU = 0.005 # update rate of the target network 
+ 

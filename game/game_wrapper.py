@@ -25,7 +25,7 @@ class SnakeGameWrapper:
         return self.get_state(), reward, done, info
 
     def get_state(self):
-        return self.__stack_frames()
+        return self.__stack_frames() 
 
     def get_last_state(self):
         return self.frames[-1]

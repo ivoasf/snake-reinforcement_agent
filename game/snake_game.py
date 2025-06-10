@@ -173,4 +173,5 @@ class SnakeGame:
 
 if __name__ == '__main__':
     game = SnakeGame(20, 20)
-    game.print_state()
+    game.print_state() 
+ 

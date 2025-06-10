@@ -33,7 +33,7 @@ class EpsilonGreedyPolicy(Policy):
                 # use the policy network to get the action with the highest value
                 return policy_net(state).max(1).indices.view(1, 1)
         else:
-            return torch.tensor([[random.randrange(self.num_actions)]], device=device, dtype=torch.long)
+            return torch.tensor([[random.randrange(self.num_actions)]], device=device, dtype=torch.long) 
 
 
 class BoltzmannPolicy(Policy):

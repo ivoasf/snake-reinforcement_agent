@@ -2,7 +2,7 @@
     A class representing the task1 agent for the snake game.
 
     The agent uses a simple DQN to play the snake game.
-    The agent can choose actions based on a heuristic or random.
+    The agent can choose actions based on a heuristic or random. 
 """
 
 import cv2

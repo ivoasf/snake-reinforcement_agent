@@ -39,4 +39,4 @@ def snake_demo(actions):
     0  = straight ahead
     1  = turn right
 """
-snake_demo([0, 1, 0, -1])
+snake_demo([0, 1, 0, -1]) 
