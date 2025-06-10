@@ -85,7 +85,7 @@ class Task1:
                     sleep(speed)
 
                 if use_heuristic:
-                    action = torch.tensor([[self.heuristic.get_action(self.snake_game)]], device=self.device, dtype=torch.float32)
+                    action = torch.tensor([[self.heuristic.get_action(self.snake_game)]], device=self.device, dtype=torch.long)
                 else:
                     action = self.choose_action(state)
 
@@ -101,7 +101,7 @@ class Task1:
                         .unsqueeze(0)
                     )
 
-                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.long)
                 total_score = info["score"]
             
                 self.optimize_model(state, action, reward, next_state)
@@ -183,8 +183,8 @@ if __name__ == "__main__":
         snake_game=snake_game
     )
 
-    agent.train(use_heuristic=False, episodes=500, show_video=True, speed=0.0001)
-    agent.test(episodes=50, show_video=False, speed=0.0001)
+    agent.train(use_heuristic=False, episodes=50, show_video=False, speed=0.0001)
+    agent.test(episodes=10, show_video=False, speed=0.0001)
 
     end_time = time.time()
     elapsed = end_time - start_time

@@ -157,7 +157,7 @@ class Task2:
                     sleep(speed)
 
                 if use_heuristic:
-                    action = torch.tensor([[self.heuristic.get_action(self.snake_game)]], device=self.device, dtype=torch.float32)
+                    action = torch.tensor([[self.heuristic.get_action(self.snake_game)]], device=self.device, dtype=torch.long)
                 else:
                     action = self.choose_action(state)
 
@@ -173,7 +173,7 @@ class Task2:
                         .unsqueeze(0)
                     )
 
-                reward = torch.tensor([reward], device=self.device, dtype=torch.float32)
+                reward = torch.tensor([reward], device=self.device, dtype=torch.long)
                 total_score = info["score"]
             
                 self.replay_memory.push(state, action, next_state, reward)

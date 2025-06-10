@@ -251,7 +251,7 @@ if __name__ == "__main__":
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
 
-    policy = EpsilonGreedyPolicy()
+    policy = BoltzmannPolicy()
     heuristic = ImprovedHeuristic()
 
     optimizer = torch.optim.AdamW(policy_net.parameters(), lr=config.LEARNING_RATE)
@@ -266,8 +266,8 @@ if __name__ == "__main__":
         snake_game=snake_game
     )
 
-    agent.train(episodes=500, show_video=True, speed=0.0001)
-    agent.test(episodes=10, show_video=True, speed=0.2)
+    agent.train(episodes=150, show_video=True, speed=0.0001)
+    agent.test(episodes=20, show_video=True, speed=0.2)
 
     end_time = time.time()
     elapsed = end_time - start_time
